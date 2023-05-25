@@ -1,0 +1,50 @@
+{
+  "init_repetition": 0,
+  "num_repetitions": 1,
+  "common": {
+    "tboard_dir": "experiments/ogbl-biokg-dc-rank/runs",
+    "model_cache_path": "experiments/ogbl-biokg-dc-rank/models",
+    "log_parameters": false,
+    "num_epochs": 500,
+    "num_valid_step": 1,
+    "device": "cuda:0",
+    "num_workers": 2,
+    "persistent_workers": false,
+    "patience": 3,
+    "reciprocal": false
+  },
+  "datasets": ["ogbl-biokg"],
+  "hparams_grid": {
+    "common": {
+      "rank": [10, 50, 100, 200, 500],
+      "optimizer": ["Adam"],
+      "batch_size": [500, 1000, 2000, 5000],
+      "learning_rate": [0.001]
+    },
+    "datasets": {
+      "ogbl-biokg": {
+        "ComplEx": {},
+        "SquaredComplEx": {},
+        "TypedSquaredComplEx": {}
+      }
+    }
+  },
+  "settings": {
+    "models": {
+      "ComplEx": {
+        "PLL": {
+          "score_rhs": true,
+          "score_rel": true,
+          "score_lhs": true
+        }
+      },
+      "SquaredComplEx|TypedSquaredComplEx": {
+        "PLL": {
+          "score_rhs": true,
+          "score_rel": true,
+          "score_lhs": true
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "init_repetition": 0,
+  "num_repetitions": 1,
+  "common": {
+    "tboard_dir": "experiments/large-datasets/runs",
+    "model_cache_path": "experiments/large-datasets/models",
+    "log_parameters": false,
+    "num_epochs": 500,
+    "num_valid_step": 1,
+    "device": "cuda:0",
+    "num_workers": 2,
+    "persistent_workers": false,
+    "patience": 3,
+    "reciprocal": false
+  },
+  "datasets": ["FB15K-237", "WN18RR", "ogbl-biokg"],
+  "hparams_grid": {
+    "common": {
+      "rank": [1000],
+      "optimizer": ["Adam"],
+      "batch_size": [500, 1000, 2000, 5000],
+      "learning_rate": [0.01, 0.001, 0.0001]
+    },
+    "datasets": {
+      "FB15K-237": {
+        "SquaredCP": {
+          "distil_run": ["OAdam_LR0.001_B5000_GNone_R1000"]
+        },
+        "SquaredComplEx": {
+          "distil_run": ["OAdam_LR0.001_B500_GNone_R1000"]
+        }
+      },
+      "WN18RR": {
+        "SquaredCP": {
+          "distil_run": ["OAdam_LR0.001_B500_GNone_R1000"]
+        },
+        "SquaredComplEx": {
+          "distil_run": ["OAdam_LR0.001_B500_GNone_R1000"]
+        }
+      },
+      "ogbl-biokg": {
+        "SquaredCP": {
+          "distil_run": ["OAdam_LR0.001_B5000_GNone_R1000"]
+        },
+        "SquaredComplEx": {
+          "distil_run": ["OAdam_LR0.001_B5000_GNone_R1000"]
+        }
+      }
+    }
+  },
+  "settings": {
+    "models": {
+      "SquaredCP|SquaredComplEx": {
+        "distil-PLL": {
+          "score_rhs": true,
+          "score_rel": true,
+          "score_lhs": true,
+          "distil_model": true
+        },
+        "distil-MLE": {
+          "score_ll": true,
+          "distil_model": true
+        }
+      }
+    }
+  }
+}

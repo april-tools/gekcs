@@ -1,0 +1,9 @@
+torch<2.0.0
+numpy
+tensorboard
+matplotlib
+scikit-learn
+wandb
+ogb
+tueplots
+tqdm

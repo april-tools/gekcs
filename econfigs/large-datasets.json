@@ -1,0 +1,79 @@
+{
+  "init_repetition": 0,
+  "num_repetitions": 1,
+  "common": {
+    "tboard_dir": "experiments/large-datasets/runs",
+    "model_cache_path": "experiments/large-datasets/models",
+    "log_parameters": false,
+    "num_epochs": 500,
+    "num_valid_step": 1,
+    "device": "cuda:0",
+    "num_workers": 2,
+    "persistent_workers": false,
+    "patience": 3,
+    "reciprocal": false
+  },
+  "datasets": ["FB15K-237", "WN18RR", "ogbl-biokg", "ogbl-wikikg2"],
+  "hparams_grid": {
+    "common": {
+      "rank": [500, 1000, 2000, 3000],
+      "optimizer": ["Adam"],
+      "batch_size": [500, 1000, 2000, 5000],
+      "learning_rate": [0.001]
+    },
+    "datasets": {
+      "FB15K-237|WN18RR": {
+        "CP": {},
+        "ComplEx": {},
+        "MonoCP": { "learning_rate": [0.01] },
+        "MonoComplEx": { "learning_rate": [0.01] },
+        "SquaredCP": {},
+        "SquaredComplEx": {}
+      },
+      "ogbl-biokg": {
+        "CP": {},
+        "ComplEx": {},
+        "MonoCP": { "learning_rate": [0.01] },
+        "MonoComplEx": { "learning_rate": [0.01] },
+        "SquaredCP": {},
+        "SquaredComplEx": {},
+        "TypedSquaredComplEx": {}
+      },
+      "ogbl-wikikg2": {
+        "SquaredComplEx": {
+          "rank": [100],
+          "optimizer": ["Adam"],
+          "batch_size": [10000],
+          "learning_rate": [0.001]
+        },
+        "ComplEx": {
+          "rank": [100],
+          "optimizer": ["Adagrad"],
+          "batch_size": [250],
+          "learning_rate": [0.1]
+        }
+      }
+    }
+  },
+  "settings": {
+    "models": {
+      "CP|ComplEx": {
+        "PLL": {
+          "score_rhs": true,
+          "score_rel": true,
+          "score_lhs": true
+        }
+      },
+      "MonoCP|SquaredCP|MonoComplEx|SquaredComplEx|TypedSquaredComplEx": {
+        "PLL": {
+          "score_rhs": true,
+          "score_rel": true,
+          "score_lhs": true
+        },
+        "MLE": {
+          "score_ll": true
+        }
+      }
+    }
+  }
+}
