@@ -12,7 +12,7 @@ from kbc.models import KBCModel
 from kbc.gekc_models import TractableKBCModel
 
 DATASETS_NAMES = [
-    'NATIONS', 'UMLS', 'KINSHIP', 'FB15K-237', 'WN18RR', 'ogbl-biokg', 'ogbl-wikikg2'
+    'NATIONS', 'UMLS', 'KINSHIP', 'FB15K-237', 'WN18RR', 'ogbl-biokg', 'ogbl-wikikg2', 'ogbls-wikikg90mv2'
 ]
 
 

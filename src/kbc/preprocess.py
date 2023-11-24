@@ -5,6 +5,7 @@ from typing import Optional
 
 import numpy as np
 from ogb import linkproppred
+from ogb import lsc
 
 from kbc.datasets import DATASETS_NAMES
 from kbc.graph import nnmf_features, construct_negative_triples
@@ -51,6 +52,28 @@ def preprocess_dataset(path: str, ds_out_path: str):
             triples[f] = examples_array
 
     return triples, n_entities, n_relations, relations_to_id
+
+
+def preprocess_ogbls_dataset(name: str, path: str, ds_out_path: str):
+    if name != 'ogbls-wikikg90mv2':
+        raise ValueError(f"Unknown large ogb dataset named {name}")
+    dataset = lsc.WikiKG90Mv2Dataset(root=path)
+    n_entities = dataset.num_entities
+    n_relations = dataset.num_relations
+    print(f"{n_entities} entities and {n_relations} relations")
+
+    train_array = dataset.train_hrt
+    valid_dict_hr = dataset.valid_dict['h,r->t']['hr']
+    valid_dict_t = dataset.valid_dict['h,r->t']['t']
+    valid_array = np.concatenate([valid_dict_hr, valid_dict_t[:, None]], axis=1)
+    test_array = valid_array  # Answers for the test set are not provided (see ogb doc)
+    # I will take the test data as the validation data for now
+
+    triples = {'train': train_array, 'valid': valid_array, 'test': test_array}
+    for f in ['train', 'valid', 'test']:
+        with open(os.path.join(ds_out_path, f + '.pickle'), 'wb') as to_write:
+            pickle.dump(triples[f], to_write)
+    return triples, n_entities, n_relations
 
 
 def preprocess_ogbl_dataset(name: str, path: str, ds_out_path: str):
@@ -213,8 +236,10 @@ def prepare_dataset(
     # Preprocess the non-ogbl dataset
     if 'ogbl' not in name:
         triples, n_entities, n_relations, relations_to_id = preprocess_dataset(path, ds_out_path)
-    else:
+    elif 'ogbls' not in name:
         triples, n_entities, n_relations = preprocess_ogbl_dataset(name, path, ds_out_path)
+    else:
+        triples, n_entities, n_relations = preprocess_ogbls_dataset(name, path, ds_out_path)
 
     # Save negative triples, if required
     if save_negatives:
