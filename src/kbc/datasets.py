@@ -6,7 +6,7 @@ from collections import defaultdict
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, TensorDataset
-from ogb import linkproppred
+from ogb import linkproppred, lsc
 
 from kbc.models import KBCModel
 from kbc.gekc_models import TractableKBCModel
@@ -50,6 +50,9 @@ class Dataset:
         data_path: str = 'data',
         seed: int = 42
     ):
+        if dataset in ['ogbls-wikikg90mv2'] and reciprocal:
+            raise ValueError("Reciprocal triples are not supported on large scale OGB data sets")
+
         self.name = dataset
         self.device = device
         self.reciprocal = reciprocal
@@ -68,7 +71,7 @@ class Dataset:
         maxis = np.max(self.data['train'], axis=0)
         self.n_entities = int(max(maxis[0], maxis[2]) + 1)
         self.n_predicates = int(maxis[1] + 1)
-        if self.name in ['ogbl-wikikg2']:
+        if self.name in ['ogbl-wikikg2', 'ogbls-wikikg90mv2']:
             self.bsz_vt = 16
         elif self.name in ['WN18RR', 'ogbl-biokg']:
             self.bsz_vt = 512
@@ -163,7 +166,10 @@ class Dataset:
     ) -> Tuple[Tuple[dict, dict, dict, dict], bool]:
         print('Evaluate the split {}'.format(split))
         examples = self.get_examples(split)
-        query_types = ['rhs', 'lhs'] if query_type == 'both' else [query_type]
+        if 'ogbls' in self.name:
+            query_types = ['rhs']  # When evaluating on large OGB data sets, just evaluate on h,r->t queries
+        else:
+            query_types = ['rhs', 'lhs'] if query_type == 'both' else [query_type]
         res, mean_reciprocal_rank, hits_at = {}, {}, {}
         diverged = False
         if n_queries > 0:
@@ -180,15 +186,28 @@ class Dataset:
                 q = examples
             q = torch.from_numpy(q).to(self.device)
             if 'ogb' in self.name:
-                evaluator = linkproppred.Evaluator(name=self.name)
-                metrics, div = model.get_metrics_ogb(
-                    q, batch_size=self.bsz_vt,
-                    query_type=candidate_pos, evaluator=evaluator
-                )
-                diverged = diverged or div
-                mean_reciprocal_rank[m] = metrics['mrr_list']
-                hits_at[m] = torch.FloatTensor([metrics['hits@{}_list'.format(k)] for k in at])
-                res = None
+                if 'ogbls' in self.name:
+                    if self.name != 'ogbls-wikikg90mv2':
+                        raise NotImplementedError(f"Unknown evaluation method for dataset {self.name}")
+                    evaluator = lsc.WikiKG90Mv2Evaluator()
+                    metrics, div = model.get_metrics_ogb_large_scale(
+                        q, batch_size=self.bsz_vt,
+                        query_type=candidate_pos, evaluator=evaluator
+                    )
+                    diverged = diverged or div
+                    mean_reciprocal_rank[m] = metrics['mrr']
+                    hits_at[m] = torch.FloatTensor([-0.0 for k in at])  # Hits@k is not being measured
+                    res = None
+                else:
+                    evaluator = linkproppred.Evaluator(name=self.name)
+                    metrics, div = model.get_metrics_ogb(
+                        q, batch_size=self.bsz_vt,
+                        query_type=candidate_pos, evaluator=evaluator
+                    )
+                    diverged = diverged or div
+                    mean_reciprocal_rank[m] = metrics['mrr_list']
+                    hits_at[m] = torch.FloatTensor([metrics['hits@{}_list'.format(k)] for k in at])
+                    res = None
             else:
                 ranks, predicted, div = model.get_ranking(
                     q, self.to_skip[m],

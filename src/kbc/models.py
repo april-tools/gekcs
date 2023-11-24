@@ -4,7 +4,7 @@ from typing import Tuple, List, Dict
 
 import torch
 from torch import nn
-from ogb import linkproppred
+from ogb import linkproppred, lsc
 
 MODELS_NAMES = [
     'CP', 'RESCAL', 'TuckER', 'ComplEx'
@@ -159,6 +159,45 @@ class KBCModel(nn.Module):
         metrics = {}
         for metric in test_logs:
             metrics[metric] = torch.cat(test_logs[metric]).mean().item()
+        return metrics, False
+
+    def get_metrics_ogb_large_scale(
+            self,
+            queries: torch.Tensor,
+            evaluator: lsc.WikiKG90Mv2Evaluator,
+            batch_size: int = 100,
+            query_type: str = 'rhs',
+    ) -> Tuple[dict, bool]:
+        """
+        Large scale OGB datasets version.
+
+        :param queries: a torch.LongTensor of triples (lhs, rel, rhs)
+        :param batch_size: maximum number of queries processed at once
+        :return: The metrics, and whether it has diverged (for these models it is always false)
+        """
+        pred_top10s = list()
+        with torch.no_grad():
+            b_begin = 0
+            while b_begin < len(queries):
+                these_queries = queries[b_begin:b_begin + batch_size]
+                chunk_begin, chunk_size = 0, self.sizes[2]  # all the entities
+                q = self.get_queries(these_queries, target=query_type)
+                cands = self.get_candidates(chunk_begin, chunk_size, target=query_type)
+                scores = q @ cands
+                pred_top10 = torch.topk(scores, k=10, dim=1, largest=True).indices
+                pred_top10s.append(pred_top10)
+                del scores, q, cands
+                b_begin += batch_size
+        if query_type == 'rhs':
+            tidx = 2
+        elif query_type == 'lhs':
+            tidx = 0
+        else:
+            raise ValueError("Unknown query type")
+        pred_top10s = torch.cat(pred_top10s, dim=0).cpu().numpy()
+        query_targets = queries[:, tidx].cpu().numpy()
+        input_dict = {'t_pred_top10': pred_top10s, 't': query_targets}
+        metrics = evaluator.eval(input_dict)
         return metrics, False
 
 
