@@ -1,6 +1,6 @@
 import os
 import time
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import torch
 import numpy as np
@@ -22,31 +22,31 @@ from kbc.gekc_models import SquaredCP, SquaredComplEx
 from kbc.gekc_models import TypedSquaredCP, TypedSquaredComplEx
 
 
-def setup_model(size: Tuple[int, int, int], conf: dict) -> KBCModel:
+def setup_model(size: Tuple[int, int, int], conf: dict, device: Optional[Union[torch.device, str]] = None) -> KBCModel:
     if conf['model'] == 'ComplEx':
-        model = ComplEx(size, conf['rank'], conf['init_scale'])
+        model = ComplEx(size, conf['rank'], conf['init_scale'], device=device)
     elif conf['model'] == 'TuckER':
-        model = TuckER(size, conf['rank'], conf['rank_r'], conf['init_scale'], conf['dropout'])
+        model = TuckER(size, conf['rank'], conf['rank_r'], conf['init_scale'], conf['dropout'], device=device)
     elif conf['model'] == 'RESCAL':
-        model = RESCAL(size, conf['rank'], conf['init_scale'])
+        model = RESCAL(size, conf['rank'], conf['init_scale'], device=device)
     elif conf['model'] == 'CP':
-        model = CP(size, conf['rank'], conf['init_scale'])
+        model = CP(size, conf['rank'], conf['init_scale'], device=device)
     elif conf['model'] == 'NNegCP':
-        model = NNegCP(size, conf['rank'], init_scale=conf['init_scale'])
+        model = NNegCP(size, conf['rank'], init_scale=conf['init_scale'], device=device)
     elif conf['model'] == 'NNegRESCAL':
-        model = NNegRESCAL(size, conf['rank'], init_scale=conf['init_scale'])
+        model = NNegRESCAL(size, conf['rank'], init_scale=conf['init_scale'], device=device)
     elif conf['model'] == 'NNegTuckER':
-        model = NNegTuckER(size, conf['rank'], conf['rank_r'], init_scale=conf['init_scale'])
+        model = NNegTuckER(size, conf['rank'], conf['rank_r'], init_scale=conf['init_scale'], device=device)
     elif conf['model'] == 'NNegComplEx':
-        model = NNegComplEx(size, conf['rank'], init_scale=conf['init_scale'])
+        model = NNegComplEx(size, conf['rank'], init_scale=conf['init_scale'], device=device)
     elif conf['model'] == 'SquaredCP':
-        model = SquaredCP(size, conf['rank'], init_scale=conf['init_scale'])
+        model = SquaredCP(size, conf['rank'], init_scale=conf['init_scale'], device=device)
     elif conf['model'] == 'SquaredComplEx':
-        model = SquaredComplEx(size, conf['rank'], init_scale=conf['init_scale'])
+        model = SquaredComplEx(size, conf['rank'], init_scale=conf['init_scale'], device=device)
     elif conf['model'] == 'TypedSquaredCP':
-        model = TypedSquaredCP(size, conf['rank'], init_scale=conf['init_scale'])
+        model = TypedSquaredCP(size, conf['rank'], init_scale=conf['init_scale'], device=device)
     elif conf['model'] == 'TypedSquaredComplEx':
-        model = TypedSquaredComplEx(size, conf['rank'], init_scale=conf['init_scale'])
+        model = TypedSquaredComplEx(size, conf['rank'], init_scale=conf['init_scale'], device=device)
     else:
         raise ValueError("Unknown model called {}".format(conf['model']))
     return model
@@ -144,7 +144,12 @@ class KBCEngine:
         )
 
         # Set up the model
-        self.model = setup_model(self.dataset.get_shape(), conf).to(self.device)
+        if 'ogbls' in conf['dataset']:
+            self.model = setup_model(self.dataset.get_shape(), conf, device=self.device)
+        else:
+            # Fallback to CPU initialization in case of relatively small data sets
+            # as to maintain reproducibility
+            self.model = setup_model(self.dataset.get_shape(), conf).to(self.device)
 
         # Setup loss, batch size, regularizer and optimizer
         self.loss_name = 'NLL' if conf['model'] in TSRL_MODELS_NAMES else 'LCWA+ce'

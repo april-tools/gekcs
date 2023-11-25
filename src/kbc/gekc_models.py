@@ -26,7 +26,8 @@ class TractableKBCModel(KBCModel):
         init_dist: str = 'normal',
         init_loc: float = 0.0,
         init_scale: float = 1e-1,
-        base_dist: str = 'categorical'
+        base_dist: str = 'categorical',
+        device: Optional[Union[torch.device, str]] = None
     ):
         """
         Tractable KBC Circuit.
@@ -39,6 +40,7 @@ class TractableKBCModel(KBCModel):
         :param init_loc: Initial location for embeddings initialization.
         :param init_scale: Initial scale for embeddings initialization.
         :param base_dist: The base distributions layer to use for entities' embeddings.
+        :param device: The device on which allocate the tensors.
         """
         super(TractableKBCModel, self).__init__()
         self.sizes = sizes
@@ -55,7 +57,8 @@ class TractableKBCModel(KBCModel):
         if base_dist == 'categorical':
             self.ent_embeddings = Categorical(
                 self.sizes[0], self.batch_size,
-                init_dist=init_dist, init_loc=init_loc, init_scale=init_scale
+                init_dist=init_dist, init_loc=init_loc, init_scale=init_scale,
+                device=device
             )
             if self.role_entity:
                 init_params_(self.ent_embeddings.logits.data[:, :self.rank], init_dist, init_loc, init_scale)
@@ -63,13 +66,14 @@ class TractableKBCModel(KBCModel):
         elif base_dist == 'twin-categorical':
             self.ent_embeddings = TwinCategorical(
                 self.sizes[0], self.batch_size,
-                init_dist=init_dist, init_loc=init_loc, init_scale=init_scale
+                init_dist=init_dist, init_loc=init_loc, init_scale=init_scale,
+                device=device
             )
             if self.role_entity:
                 init_params_(self.ent_embeddings.logits.data[:, :self.rank], init_dist, init_loc, init_scale)
                 init_params_(self.ent_embeddings.logits.data[:, self.rank:], init_dist, init_loc, init_scale)
         elif base_dist == 'embedding':
-            self.ent_embeddings = nn.Embedding(self.sizes[0], self.batch_size)
+            self.ent_embeddings = nn.Embedding(self.sizes[0], self.batch_size, device=device)
             if self.role_entity:
                 init_params_(self.ent_embeddings.weight.data[:, :self.rank], init_dist, init_loc, init_scale)
                 init_params_(self.ent_embeddings.weight.data[:, self.rank:], init_dist, init_loc, init_scale)
@@ -82,15 +86,17 @@ class TractableKBCModel(KBCModel):
         if base_dist == 'categorical':
             self.rel_embeddings = Categorical(
                 self.sizes[1], self.rank_r,
-                init_dist=init_dist, init_loc=init_loc, init_scale=init_scale
+                init_dist=init_dist, init_loc=init_loc, init_scale=init_scale,
+                device=device
             )
         elif base_dist == 'twin-categorical':
             self.rel_embeddings = TwinCategorical(
                 self.sizes[1], self.rank_r,
-                init_dist=init_dist, init_loc=init_loc, init_scale=init_scale
+                init_dist=init_dist, init_loc=init_loc, init_scale=init_scale,
+                device=device
             )
         elif base_dist == 'embedding':
-            self.rel_embeddings = nn.Embedding(self.sizes[1], self.rank_r)
+            self.rel_embeddings = nn.Embedding(self.sizes[1], self.rank_r, device=device)
             init_params_(self.rel_embeddings.weight.data, init_dist, init_loc, init_scale)
         else:
             raise ValueError("Unknown base distributions layer named {}".format(base_dist))
@@ -503,13 +509,14 @@ class NNegKBCModel(TractableKBCModel):
         init_dist: str = 'normal',
         init_loc: float = 0.0,
         init_scale: float = 1e-3,
-        base_dist: str = 'categorical'
+        base_dist: str = 'categorical',
+        device: Optional[Union[torch.device, str]] = None
     ):
         super(NNegKBCModel, self).__init__(
             sizes=sizes, rank=rank, rank_r=rank_r,
             role_entity=role_entity, init_dist=init_dist,
             init_loc=init_loc, init_scale=init_scale,
-            base_dist=base_dist
+            base_dist=base_dist, device=device
         )
 
     def filter_inverted_relations(self):
@@ -830,6 +837,7 @@ class NNegTuckER(NNegKBCModel):
             rank: int,
             rank_r: int,
             init_scale: float = 1e-3,
+            device: Optional[Union[torch.device, str]] = None,
             **kwargs
     ):
         """
@@ -839,14 +847,16 @@ class NNegTuckER(NNegKBCModel):
         :param rank: The rank of the decomposition, or simply the number of channels.
         :param rank_r: The specific rank for the relations.
         :param init_scale: Initial scale for embeddings initialization.
+        :param device: The device.
         :param kwargs: Additional parameters to pass to the base class.
         """
         super(NNegTuckER, self).__init__(
-            sizes, rank, rank_r=rank_r, init_scale=init_scale, init_dist='exp-dirichlet', **kwargs
+            sizes, rank, rank_r=rank_r, init_scale=init_scale, init_dist='exp-dirichlet',
+            device=device, **kwargs
         )
 
         # Initialize the core tensor parameter
-        core = torch.empty(self.rank * self.rank * self.rank_r)
+        core = torch.empty(self.rank * self.rank * self.rank_r, device=device)
         init_params_(core, 'exp-dirichlet', init_scale=init_scale)
         self.core = nn.Parameter(core, requires_grad=True)
 
@@ -916,7 +926,13 @@ class NNegTuckER(NNegKBCModel):
 
 
 class NNegComplEx(NNegKBCModel):
-    def __init__(self, sizes: Tuple[int, int, int], rank: int, **kwargs):
+    def __init__(
+            self,
+            sizes: Tuple[int, int, int],
+            rank: int,
+            device: Optional[Union[torch.device, str]] = None,
+            **kwargs
+    ):
         """
         NNegtonic ComplEx Circuit (or ComplEx+).
         The parameters of ComplEx are reparametrized (the real part or the imaginary part) in order to achieve
@@ -924,15 +940,17 @@ class NNegComplEx(NNegKBCModel):
 
         :param sizes: Tuple of number of entities and number of relation types.
         :param rank: The rank of the decomposition, or simply the number of channels.
+        :param device: The device.
         :param kwargs: Additional parameters to pass to the base class.
         """
         super(NNegComplEx, self).__init__(
             sizes, rank,
-            base_dist='twin-categorical', init_dist='exp-dirichlet', **kwargs
+            base_dist='twin-categorical', init_dist='exp-dirichlet',
+            device=device, **kwargs
         )
-        self.register_buffer('lhs_idx', torch.tensor([0, 1, 0, 1]))
-        self.register_buffer('rel_idx', torch.tensor([0, 0, 1, 1]))
-        self.register_buffer('rhs_idx', torch.tensor([0, 1, 1, 0]))
+        self.register_buffer('lhs_idx', torch.tensor([0, 1, 0, 1], device=device))
+        self.register_buffer('rel_idx', torch.tensor([0, 0, 1, 1], device=device))
+        self.register_buffer('rhs_idx', torch.tensor([0, 1, 1, 0], device=device))
 
     def filter_inverted_relations(self):
         prev_rel_logits = self.rel_embeddings.logits.data

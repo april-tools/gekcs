@@ -1,6 +1,6 @@
 import abc
 from collections import defaultdict
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Optional, Union
 
 import torch
 from torch import nn
@@ -203,14 +203,18 @@ class KBCModel(nn.Module):
 
 class CP(KBCModel):
     def __init__(
-        self, sizes, rank, init_size=1e-3
+        self,
+        sizes,
+        rank,
+        init_size=1e-3,
+        device: Optional[Union[torch.device, str]] = None
     ):
         super(CP, self).__init__()
         self.sizes = sizes
         self.rank = rank
 
-        self.entity = nn.Embedding(sizes[0], rank * 2, sparse=False)
-        self.relation = nn.Embedding(sizes[1], rank, sparse=False)
+        self.entity = nn.Embedding(sizes[0], rank * 2, sparse=False, device=device)
+        self.relation = nn.Embedding(sizes[1], rank, sparse=False, device=device)
 
         self.entity.weight.data *= init_size
         self.relation.weight.data *= init_size
@@ -270,14 +274,18 @@ class CP(KBCModel):
 
 class RESCAL(KBCModel):
     def __init__(
-        self, sizes, rank, init_size=1e-3
+            self,
+            sizes,
+            rank,
+            init_size=1e-3,
+            device: Optional[Union[torch.device, str]] = None
     ):
         super(RESCAL, self).__init__()
         self.sizes = sizes
         self.rank = rank
 
-        self.entity = nn.Embedding(sizes[0], rank, sparse=False)
-        self.relation = nn.Embedding(sizes[1], rank * rank, sparse=False)
+        self.entity = nn.Embedding(sizes[0], rank, sparse=False, device=device)
+        self.relation = nn.Embedding(sizes[1], rank * rank, sparse=False, device=device)
         
         self.entity.weight.data *= init_size
         self.relation.weight.data *= init_size
@@ -345,14 +353,22 @@ class RESCAL(KBCModel):
 
 
 class TuckER(KBCModel):
-    def __init__(self, sizes, rank_e, rank_r, init_size=1e-3, dp=0.5):
+    def __init__(
+            self,
+            sizes,
+            rank_e,
+            rank_r,
+            init_size=1e-3,
+            dp=0.5,
+            device: Optional[Union[torch.device, str]] = None
+    ):
         super(TuckER, self).__init__()
         self.sizes = sizes
         self.rank_e = rank_e
         self.rank_r = rank_r
-        self.core = nn.Parameter(torch.rand(rank_e, rank_r, rank_e) * init_size)
-        self.entity = nn.Embedding(sizes[0], rank_e, sparse=True)
-        self.relation = nn.Embedding(sizes[1], rank_r, sparse=True)
+        self.core = nn.Parameter(torch.rand(rank_e, rank_r, rank_e, device=device) * init_size)
+        self.entity = nn.Embedding(sizes[0], rank_e, sparse=True, device=device)
+        self.relation = nn.Embedding(sizes[1], rank_r, sparse=True, device=device)
         self.dropout = torch.nn.Dropout(dp)
 
         self.entity.weight.data *= init_size
@@ -429,15 +445,18 @@ class TuckER(KBCModel):
 
 class ComplEx(KBCModel):
     def __init__(
-            self, sizes: Tuple[int, int, int], rank: int,
-            init_size: float = 1e-3
+            self,
+            sizes: Tuple[int, int, int],
+            rank: int,
+            init_size: float = 1e-3,
+            device: Optional[Union[torch.device, str]] = None
     ):
         super(ComplEx, self).__init__()
         self.sizes = sizes
         self.rank = rank
 
         self.embeddings = nn.ModuleList([
-            nn.Embedding(s, 2 * rank, sparse=False)
+            nn.Embedding(s, 2 * rank, sparse=False, device=device)
             for s in sizes[:2]
         ])
         self.embeddings[0].weight.data *= init_size

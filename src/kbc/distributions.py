@@ -1,3 +1,5 @@
+from typing import Optional, Union
+
 import numpy as np
 import torch
 from torch import nn
@@ -26,7 +28,12 @@ def init_params_(tensor: torch.Tensor, init_dist: str, init_loc: float = 0.0, in
         nn.init.normal_(tensor, init_loc, init_scale)
         tensor.exp_()
     elif init_dist == 'exp-dirichlet':
-        concentration = torch.full((tensor.shape[0],), fill_value=1.0 / init_scale, dtype=torch.float64)
+        concentration = torch.full(
+            (tensor.shape[0],),
+            fill_value=1.0 / init_scale,
+            dtype=torch.float64,
+            device=tensor.device
+        )
         t = Dirichlet(concentration).sample(tensor.shape[1:])
         t = t.permute(dims=[len(tensor.shape) - 1] + list(range(len(tensor.shape) - 1)))
         t = torch.log(t)
@@ -34,51 +41,51 @@ def init_params_(tensor: torch.Tensor, init_dist: str, init_loc: float = 0.0, in
     elif init_dist == 'centered-cp-normal':
         # The initial outputs of CP+ will be approx. normally distributed and centered (in log-space)
         init_loc = np.log(tensor.shape[-1]) / 3.0 + 0.5 * (init_scale ** 2)
-        t = torch.randn(*tensor.shape, dtype=torch.float64) * init_scale - init_loc
+        t = torch.randn(*tensor.shape, dtype=torch.float64, device=tensor.device) * init_scale - init_loc
         tensor.copy_(t.float())
     elif init_dist == 'centered-complex-normal':
         # The initial outputs of ComplEx+ will be approx. normally distributed and centered (in log-space)
         init_loc = np.log(2 * tensor.shape[-1]) / 3.0 + 0.5 * (init_scale ** 2)
-        t = torch.randn(*tensor.shape, dtype=torch.float64) * init_scale - init_loc
+        t = torch.randn(*tensor.shape, dtype=torch.float64, device=tensor.device) * init_scale - init_loc
         tensor.copy_(t.float())
     elif init_dist == 'centered-rescal-normal':
         # The initial outputs of RESCAL+ will be approx. normally distributed and centered (in log-space)
         init_loc = np.log(tensor.shape[-1]) / 2.0 + 0.5 * (init_scale ** 2)
-        t = torch.randn(*tensor.shape, dtype=torch.float64) * init_scale - init_loc
+        t = torch.randn(*tensor.shape, dtype=torch.float64, device=tensor.device) * init_scale - init_loc
         tensor.copy_(t.float())
     elif init_dist == 'centered-tucker-normal':
         # The initial outputs of TuckER+ will be approx. normally distributed and centered (in log-space)
         init_loc = np.log(tensor.shape[-1]) + 0.5 * (init_scale ** 2)
-        t = torch.randn(*tensor.shape, dtype=torch.float64) * init_scale - init_loc
+        t = torch.randn(*tensor.shape, dtype=torch.float64, device=tensor.device) * init_scale - init_loc
         tensor.copy_(t.float())
     elif init_dist == 'centered-cp-log-normal':
         # This initial outputs of CP^2 will be approx. normally distributed and centered (in log-space)
         init_loc = np.log(tensor.shape[-1]) / 3.0 + 0.5 * (init_scale ** 2)
-        t = torch.exp(torch.randn(*tensor.shape, dtype=torch.float64) * init_scale - init_loc)
+        t = torch.exp(torch.randn(*tensor.shape, dtype=torch.float64, device=tensor.device) * init_scale - init_loc)
         tensor.copy_(t.float())
     elif init_dist == 'centered-complex-log-normal':
         # This initial outputs of ComplEx^2 will be approx. normally distributed and centered (in log-space)
         init_loc = np.log(tensor.shape[-1]) / 3.0 + 0.5 * (init_scale ** 2)
-        t = torch.exp(torch.randn(*tensor.shape, dtype=torch.float64) * init_scale - init_loc)
+        t = torch.exp(torch.randn(*tensor.shape, dtype=torch.float64, device=tensor.device) * init_scale - init_loc)
         tensor.copy_(t.float())
     elif init_dist == 'centered-cp-log-normal-neg':
         # This initial outputs of CP^2 will be approx. normally distributed and centered (in log-space)
         init_loc = np.log(tensor.shape[-1]) / 3.0 + 0.5 * (init_scale ** 2)
-        t = torch.exp(torch.randn(*tensor.shape, dtype=torch.float64) * init_scale - init_loc)
-        mask = torch.rand(tensor.shape[-1]) <= 0.0
+        t = torch.exp(torch.randn(*tensor.shape, dtype=torch.float64, device=tensor.device) * init_scale - init_loc)
+        mask = torch.rand(tensor.shape[-1], device=tensor.device) <= 0.0
         t[..., mask] = -t[..., mask]
         tensor.copy_(t.float())
     elif init_dist == 'centered-complex-log-normal-neg':
         # This initial outputs of ComplEx^2 will be approx. normally distributed and centered (in log-space)
         init_loc = np.log(tensor.shape[-1]) / 3.0 + 0.5 * (init_scale ** 2)
-        t = torch.exp(torch.randn(*tensor.shape, dtype=torch.float64) * init_scale - init_loc)
-        mask = torch.rand(tensor.shape[-1]) <= 0.0
+        t = torch.exp(torch.randn(*tensor.shape, dtype=torch.float64, device=tensor.device) * init_scale - init_loc)
+        mask = torch.rand(tensor.shape[-1], device=tensor.device) <= 0.0
         t[..., mask] = -t[..., mask]
         tensor.copy_(t.float())
     elif init_dist == 'centered-rescal-log-normal':
         # This initial outputs of RESCAL^2 will be approx. normally distributed and centered (in log-space)
         init_loc = np.log(tensor.shape[-1]) / 2.0 + 0.5 * (init_scale ** 2)
-        t = torch.exp(torch.randn(*tensor.shape, dtype=torch.float64) * init_scale - init_loc)
+        t = torch.exp(torch.randn(*tensor.shape, dtype=torch.float64, device=tensor.device) * init_scale - init_loc)
         tensor.copy_(t.float())
     else:
         raise ValueError("Unknown initializing distribution called {}".format(init_dist))
@@ -142,7 +149,7 @@ class DiscreteDistribution(UnnormalizedDiscreteDistribution):
 
 class Categorical(UnnormalizedDiscreteDistribution):
     def __init__(self, num_categories: int, batch_size: int, init_dist: str = 'uniform',
-                 init_loc: float = 0.0, init_scale: float = 1.0):
+                 init_loc: float = 0.0, init_scale: float = 1.0, device: Optional[Union[torch.device, str]] = None):
         """
         Initialize a batch of un-normalized categorical distributions.
 
@@ -151,11 +158,12 @@ class Categorical(UnnormalizedDiscreteDistribution):
         :param init_dist: The initalizing distribution.
         :param init_loc: The initializer's hyper-parameter.
         :param init_scale: The initializer's hyper-parameter.
+        :param device: The device.
         """
         super(Categorical, self).__init__(num_categories, batch_size)
 
         # Initialize the logits parameter
-        logits = torch.empty(self.num_categories, self.batch_size)
+        logits = torch.empty(self.num_categories, self.batch_size, device=device)
         init_params_(logits, init_dist, init_loc=init_loc, init_scale=init_scale)
         self.logits = nn.Parameter(logits, requires_grad=True)
 
@@ -175,7 +183,7 @@ class Categorical(UnnormalizedDiscreteDistribution):
 
 class TwinCategorical(UnnormalizedDiscreteDistribution):
     def __init__(self, num_categories: int, batch_size: int, init_dist: str = 'uniform',
-                 init_loc: float = 0.0, init_scale: float = 1.0):
+                 init_loc: float = 0.0, init_scale: float = 1.0, device: Optional[Union[torch.device, str]] = None):
         """
         Initialize a batch of un-normalized categorical distributions with two components:
         the positive part and the negative part, as in Twin-SPNs.
@@ -185,15 +193,16 @@ class TwinCategorical(UnnormalizedDiscreteDistribution):
         :param init_dist: The initalizing distribution.
         :param init_loc: The initializer's hyper-parameter.
         :param init_scale: The initializer's hyper-parameter.
+        :param device: The device.
         """
         super(TwinCategorical, self).__init__(num_categories, batch_size)
         # Initialize the logits parameter of the positive component
-        logits = torch.empty(self.num_categories, self.batch_size)
+        logits = torch.empty(self.num_categories, self.batch_size, device=device)
         init_params_(logits, init_dist, init_loc=init_loc, init_scale=init_scale)
         self.logits = nn.Parameter(logits, requires_grad=True)
 
         # Initialize the un-normalized multiplicative weights
-        weight = torch.empty(self.num_categories, self.batch_size)
+        weight = torch.empty(self.num_categories, self.batch_size, device=device)
         init_params_(weight, 'normal', init_loc=0.0, init_scale=1e-2)
         self.weight = nn.Parameter(weight, requires_grad=True)
 
