@@ -1,0 +1,48 @@
+{
+  "init_repetition": 0,
+  "num_repetitions": 1,
+  "common": {
+    "tboard_dir": "experiments/ogbls-wikikg90mv2/runs",
+    "model_cache_path": "experiments/ogbls-wikikg90mv2/models",
+    "log_parameters": false,
+    "num_epochs": 500,
+    "num_valid_step": 1,
+    "device": "cuda",
+    "num_workers": 2,
+    "persistent_workers": false,
+    "patience": 3,
+    "reciprocal": false
+  },
+  "datasets": ["ogbls-wikikg90mv2"],
+  "hparams_grid": {
+    "common": {
+      "rank": [20],
+      "optimizer": ["Adam"],
+      "learning_rate": [0.001]
+    },
+    "datasets": {
+      "ogbls-wikikg90mv2": {
+        "ComplEx": {"batch_size":  [100]},
+        "SquaredComplEx": {"batch_size": [12500, 2500, 500]}
+      }
+    }
+  },
+  "settings": {
+    "models": {
+      "ComplEx": {
+        "PLL": {
+          "score_rhs": true,
+          "score_rel": true,
+          "score_lhs": true
+        }
+      },
+      "SquaredComplEx": {
+        "PLL": {
+          "score_rhs": true,
+          "score_rel": true,
+          "score_lhs": true
+        }
+      }
+    }
+  }
+}
