@@ -624,13 +624,14 @@ class SquaredKBCModel(TractableKBCModel):
         role_entity: bool = False,
         init_dist: str = 'log-normal',
         init_loc: float = 0.0,
-        init_scale: float = 1e-3
+        init_scale: float = 1e-3,
+        device: Optional[Union[torch.device, str]] = None
     ):
         super(SquaredKBCModel, self).__init__(
             sizes=sizes, rank=rank, rank_r=rank_r,
             role_entity=role_entity, init_dist=init_dist,
             init_loc=init_loc, init_scale=init_scale,
-            base_dist='embedding'
+            base_dist='embedding', device=device
         )
 
         # Initialize epsilon values to avoid log-zeroing
@@ -641,7 +642,7 @@ class SquaredKBCModel(TractableKBCModel):
     def filter_inverted_relations(self):
         prev_rel_embeddings = self.rel_embeddings.weight.data
         n_relations, rank = prev_rel_embeddings.shape[0] // 2, prev_rel_embeddings.shape[1]
-        self.rel_embeddings = nn.Embedding(n_relations, rank)
+        self.rel_embeddings = nn.Embedding(n_relations, rank, device=self.rel_embeddings.weight.device)
         self.rel_embeddings.weight.data.copy_(prev_rel_embeddings[:n_relations])
 
     def partition_function(self) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:

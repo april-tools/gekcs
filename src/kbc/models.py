@@ -465,7 +465,7 @@ class ComplEx(KBCModel):
     def filter_inverted_relations(self):
         prev_rel_embeddings = self.embeddings[1].weight.data
         n_relations, rank = prev_rel_embeddings.shape[0] // 2, prev_rel_embeddings.shape[1]
-        self.embeddings[1] = nn.Embedding(n_relations, rank)
+        self.embeddings[1] = nn.Embedding(n_relations, rank, device=self.embeddings[1].weight.device)
         self.embeddings[1].weight.data.copy_(prev_rel_embeddings[:n_relations])
 
     def score(self, x):
