@@ -1,7 +1,7 @@
 # How to Turn Your Knowledge Graph Embeddings into Generative Models
 
 This repository contains the code for reproducing the experiments of the paper
-_"How to Turn Your Knowledge Graph Embeddings into Generative Models"_, which has been accepted at NeurIPS 2023.
+[_"How to Turn Your Knowledge Graph Embeddings into Generative Models"_](https://openreview.net/forum?id=RSGNGiB1q4), which has been accepted at NeurIPS 2023.
 
 Inspired by state-of-the-art models of link prediction (e.g., ComplEx),
 we introduce a novel class of tractable generative models of triples in a knowledge graph (called GeKCs)
