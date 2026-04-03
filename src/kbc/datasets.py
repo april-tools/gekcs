@@ -269,3 +269,16 @@ class TypedDataset(Dataset):
         self.dom_to_preds = defaultdict(list)
         for r, d_id in self.pred_to_domains.items():
             self.dom_to_preds[d_id].append(r)
+
+    def validate_train_split(self) -> bool:
+        triples = self.get_split('train')
+        for s, r, o, _, _ in triples:
+            so_domain_idx = self.pred_to_domains[r]
+            s_domain, o_domain = self.dom_to_types[so_domain_idx]
+            s_id_begin, s_id_end = self.type_entity_ids[s_domain]
+            o_id_begin, o_id_end = self.type_entity_ids[o_domain]
+            if not s_id_begin <= s < s_id_end:
+                return False
+            if not o_id_begin <= o < o_id_end:
+                return False
+        return True
